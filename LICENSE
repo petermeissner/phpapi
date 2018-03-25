@@ -1,5 +1,10 @@
-MIT License
+The MIT License (MIT)
 
+Original Work: Copyright (c) 2016 Maurits van der Schee
+  file source: https://raw.githubusercontent.com/mevdschee/php-crud-api/df7f5a4a78c06e4838d6caa459a22da64aea1524/extras/core.php
+  repo: https://github.com/mevdschee/php-crud-api
+
+Modifications: Copyright (c) 2018 Peter Meissner
 Copyright (c) 2018 Peter Meissner
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
