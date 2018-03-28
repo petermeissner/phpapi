@@ -125,45 +125,85 @@ echo "<pre>";
   echo "</pre>";
 }
 
+
+
 // initialize connection to db
 $db = new SQLite3("api_backend.db");
 
-/*
-// escape the columns and values from the input object
-$columns = preg_replace('/[^a-z0-9_]+/i','',array_keys($input));
-$values = array_map(function ($value) use ($link) {
-  if ($value===null) return null;
-  return mysqli_real_escape_string($link,(string)$value);
-},array_values($input));
-
-// build the SET part of the SQL command
-$set = '';
-for ( $i = 0; $i < count( $columns ); $i++ ) {
-  $set.=($i>0?',':'').'`'.$columns[$i].'`=';
-  $set.=($values[$i]===null?'NULL':'"'.$values[$i].'"');
-}
-
-// create SQL based on HTTP method
-switch ($method) {
-  case 'GET':
-    $sql = "select * from `$table`".($key?" WHERE id=$key":''); break;
-  #case 'PUT':
-  #  $sql = "update `$table` set $set where id=$key"; break;
-  case 'POST':
-    $sql = "insert into `$table` set $set"; break;
-  #case 'DELETE':
-  #  $sql = "delete from `$table` where id=$key"; break;
-}
+// check table exists
+$sql = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' and name = '$table' COLLATE NOCASE";
 
 // execute SQL statement
-$result = mysqli_query($link,$sql);
-
-// die if SQL statement failed
-if (!$result) {
-  http_response_code(404);
-  die(mysqli_error($link));
+if ( $debug_level > 0 ){
+  echo "<pre>";
+  echo PHP_EOL .  "sql:" . PHP_EOL;
+  print_r($sql);
 }
 
+$results = $db -> query($sql);
+$table_exists_results = [];
+if ( $row = $results->fetchArray() ) {
+  $table_exists_results[] = $row;
+}
+$table_exists = $table_exists_results[0]['COUNT(*)'] == 1;
+
+// execute SQL statement
+if ( $debug_level > 0 ){
+  echo PHP_EOL .  "sql res:" . PHP_EOL;
+   print_r($table_exists_results);
+  echo "</pre>";
+}
+
+
+// // escape the columns and values from the input object
+// $columns = preg_replace('/[^a-z0-9_]+/i','',array_keys($input));
+// $values = array_map(function ($value) use ($db) {
+//   if ($value===null) return null;
+//   return SQLite3::escapeString((string)$value);
+// },array_values($input));
+
+// // build the SET part of the SQL command
+// $set = '';
+// for ( $i = 0; $i < count( $columns ); $i++ ) {
+//   $set.=($i>0?',':'').'`'.$columns[$i].'`=';
+//   $set.=($values[$i]===null?'NULL':'"'.$values[$i].'"');
+// }
+
+
+
+if ( $table_exists ){
+  // create SQL based on HTTP method
+  switch ($http_method) {
+    case 'GET':
+      $sql = "select * from `$table`".($key?" WHERE id=$key":''); break;
+    #case 'PUT':
+    #  $sql = "update `$table` set $set where id=$key"; break;
+    case 'POST':
+      $sql = "insert into `$table` set $set"; break;
+    #case 'DELETE':
+    #  $sql = "delete from `$table` where id=$key"; break;
+  }
+
+  // execute SQL statement
+  if ( $debug_level > 0 ){
+    echo "<pre>";
+    print_r($sql);
+    echo "</pre>";
+  }
+
+  $results = $db -> query($sql);
+  $res_array = [];
+  while ( $row = $results->fetchArray() ) {
+    $res_array[] = $row;
+  }
+} else {
+  $res_array = [];
+}
+
+// close db connection
+$db->close();
+
+/*
 // print results, insert id or affected row count
 if ($method == 'GET') {
   if (!$key) echo '[';
@@ -181,6 +221,13 @@ if ($method == 'GET') {
 mysqli_close($link);
 */
 
-$arr = array('result' => 1, 'http-method' => $http_method, 'sql_method' => $sql_method, 'api' => $parsed_url['path']);
+$arr = 
+  array(
+    'http-method' => $http_method, 
+    'sql_method' => $sql_method, 
+    'api' => $parsed_url['path'],
+    'api_exists' => $table_exists,
+    'result' => $res_array 
+  );
 echo json_encode($arr, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_NUMERIC_CHECK | JSON_PRETTY_PRINT);
 ?>
