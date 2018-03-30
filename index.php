@@ -31,7 +31,39 @@
 //   0 = off
 //   1 = minor
 //   2 = full
-$debug_level = 0;
+$debug_level = 0  ;
+$debug_messages = [];
+
+// helper function: clean up parameter strings for SQL usage
+function clean_up_string(&$string)
+{
+  $string = 
+  preg_replace(
+    $pattern     = '/\W+/ui', # all non-word characters ignoring case and using unicode
+    $replacement = '', 
+    $subject     = 
+      mb_strtolower(
+        urldecode(
+            $string
+        )
+      )
+  );
+}
+
+// helper function: print out objects for debugging
+function debug_message( $to_be_printed, $label = "", $min_debug_level = 1){
+  global $debug_level;
+  global $debug_messages;
+  if ( $debug_level >= $min_debug_level ){
+    if( $label !== "" ){
+      $debug_messages[$label] = $to_be_printed;
+    }else{
+      $debug_messages[] = $to_be_printed;
+    }
+  }
+}
+
+
 
 // get the HTTP method
 $http_method  = $_SERVER['REQUEST_METHOD'];
@@ -43,39 +75,26 @@ $parsed_url = parse_url($_SERVER['REQUEST_URI']);
 parse_str($parsed_url['query'], $parsed_query_string); 
 
 // get sql_method
-$sql_method = "select";
-switch ($parsed_query_string['sql_method']) {
+switch ( mb_strtolower($parsed_query_string['sql_method']) ) {
   case 'select':
-    $sql = "select * from `$table`".($key?" WHERE id=$key":''); break;
-  #case 'PUT':
-  #  $sql = "update `$table` set $set where id=$key"; break;
+    $sql_method = "select"; break;
+  case 'update':
+    $sql_method = "update"; break;
   case 'insert':
-    $sql = "insert into `$table` set $set"; break;
-  #case 'DELETE':
-  #  $sql = "delete from `$table` where id=$key"; break;
+    $sql_method = "insert"; break;
+  case 'delete':
+    $sql_method = "delete"; break;
+  default:
+    $sql_method = "select"; break;
 }
 
-// get api path
-function clean_up_path(&$string)
-  {
-    $string = 
-      preg_replace(
-        $pattern     = '/\W+/ui', # all non-word characters ignoring case and using unicode
-        $replacement = '', 
-        $subject     = 
-          mb_strtolower(
-            urldecode(
-              $string
-            )
-          )
-      );
-  }
 
-#$request = explode("/", array_shift(explode('?', $_SERVER['REQUEST_URI'])));
+    
+// get api path
 $request = explode("/", $parsed_url['path']);
 array_shift($request);
 array_shift($request);
-array_walk($request, 'clean_up_path');
+array_walk($request, 'clean_up_string');
 
 
 // get request body
@@ -89,43 +108,15 @@ $table = $request[0];
 
 
 // log to user page 
-if ( $debug_level > 0 ){
-echo "<pre>";
-  
-    if ( $debug_level > 1 ){
-      echo PHP_EOL . "server: " . PHP_EOL;
-      print_r($_SERVER);
-    }
-
-    echo PHP_EOL . "parsed_url: " . PHP_EOL;
-    print_r($parsed_url);
-
-    echo PHP_EOL . "parsed_query_string: " . PHP_EOL;
-    print_r($parsed_query_string);
-
-    echo PHP_EOL . "http_method: " . PHP_EOL;
-    print_r($http_method);
-
-    echo PHP_EOL . "sql_method: " . PHP_EOL;
-    print_r($sql_method);
-
-    echo PHP_EOL .  "request: " . PHP_EOL;
-    print_r($request);
-
-    echo PHP_EOL .  "request uri: " . PHP_EOL;
-    print_r($_SERVER['REQUEST_URI']);
-    
-    echo PHP_EOL .  "input:" . PHP_EOL;
-    print_r($input);
-    
-    echo PHP_EOL .  "table:" . PHP_EOL;
-    print_r($table);
-
-    echo PHP_EOL;
-  echo "</pre>";
-}
-
-
+debug_message($_SERVER,                "server",              2);
+debug_message($parsed_url,             "parsed_url",          1);
+debug_message($parsed_query_string,    "parsed_query_string", 1);
+debug_message($http_method,            "sehttp_methodrver",   1);
+debug_message($sql_method,             "sql_method",          1);
+debug_message($request,                "request",             1);
+debug_message($_SERVER['REQUEST_URI'], "request_uri",         1);
+debug_message($input,                  "input",               1);
+debug_message($table,                  "table",               1);
 
 // initialize connection to db
 $db = new SQLite3("api_backend.db");
@@ -133,26 +124,14 @@ $db = new SQLite3("api_backend.db");
 // check table exists
 $sql = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' and name = '$table' COLLATE NOCASE";
 
-// execute SQL statement
-if ( $debug_level > 0 ){
-  echo "<pre>";
-  echo PHP_EOL .  "sql:" . PHP_EOL;
-  print_r($sql);
-}
-
 $results = $db -> query($sql);
 $table_exists_results = [];
 if ( $row = $results->fetchArray() ) {
   $table_exists_results[] = $row;
 }
 $table_exists = $table_exists_results[0]['COUNT(*)'] == 1;
+debug_message($table_exists_results, "sql_res", 1);
 
-// execute SQL statement
-if ( $debug_level > 0 ){
-  echo PHP_EOL .  "sql res:" . PHP_EOL;
-   print_r($table_exists_results);
-  echo "</pre>";
-}
 
 
 // // escape the columns and values from the input object
@@ -170,34 +149,51 @@ if ( $debug_level > 0 ){
 // }
 
 
-
+// create SQL statements
 if ( $table_exists ){
-  // create SQL based on HTTP method
-  switch ($http_method) {
-    case 'GET':
-      $sql = "select * from `$table`".($key?" WHERE id=$key":''); break;
-    #case 'PUT':
-    #  $sql = "update `$table` set $set where id=$key"; break;
-    case 'POST':
-      $sql = "insert into `$table` set $set"; break;
-    #case 'DELETE':
-    #  $sql = "delete from `$table` where id=$key"; break;
+  switch ($sql_method) {
+    case 'select':
+      if( $http_method === "GET" ){
+        $sql = "select * from `$table`".($key?" WHERE id=$key":''); 
+        break;
+      }else{
+        break; 
+      }
+    case 'update':
+      if( $http_method === "PUT" ){
+        $sql = "update `$table` set $set where id=$key"; 
+        break;
+      }else{
+        break; 
+      }
+    case 'insert':
+      if( $http_method === "POST" ){
+        $sql = "insert into `$table` set $set"; 
+        break;
+      }else{
+        break; 
+      }
+    case 'delete':
+      if( $http_method === "DELETE" ){
+        $sql = "delete from `$table` where id=$key"; 
+        break;
+      }else{
+        break;
+      }
   }
+  debug_message($sql, "sql", 1);
 
-  // execute SQL statement
-  if ( $debug_level > 0 ){
-    echo "<pre>";
-    print_r($sql);
-    echo "</pre>";
-  }
-
+// execute query
   $results = $db -> query($sql);
+
+// retrieve results
   $res_array = [];
   while ( $row = $results->fetchArray() ) {
     $res_array[] = $row;
   }
 } else {
   $res_array = [];
+  debug_message("table does not exist", "sql", 1);
 }
 
 // close db connection
@@ -216,18 +212,23 @@ if ($method == 'GET') {
 } else {
   echo mysqli_affected_rows($link);
 }
-
-// close mysql connection
-mysqli_close($link);
 */
 
+// collect info and return
 $arr = 
   array(
     'http-method' => $http_method, 
     'sql_method' => $sql_method, 
     'api' => $parsed_url['path'],
     'api_exists' => $table_exists,
+    'rows_affected' => 'tbd',
     'result' => $res_array 
   );
+
+
+if( $debug_level > 0 ){
+  $arr['debug_messages'] = $debug_messages;
+}
+
 echo json_encode($arr, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_NUMERIC_CHECK | JSON_PRETTY_PRINT);
 ?>
