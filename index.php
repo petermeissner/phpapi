@@ -27,12 +27,22 @@
 
 // -----------------------------------------------------------------------------
 
+
+
+
+// options ---------------------------------------------------------------------
+
 // setting debug_level to use throughout script for logging to user facing response
 //   0 = off
 //   1 = minor
 //   2 = full
 $debug_level = 0  ;
-$debug_messages = [];
+
+
+
+
+
+// functions -------------------------------------------------------------------
 
 // helper function: clean up parameter strings for SQL usage
 function clean_up_string(&$string)
@@ -51,6 +61,7 @@ function clean_up_string(&$string)
 }
 
 // helper function: print out objects for debugging
+$debug_messages = [];
 function debug_message( $to_be_printed, $label = "", $min_debug_level = 1){
   global $debug_level;
   global $debug_messages;
@@ -64,59 +75,98 @@ function debug_message( $to_be_printed, $label = "", $min_debug_level = 1){
 }
 
 
+// helper function that returns all data gathered and end script 
+$script_return_array = [];
+function script_return( $exit_value = 0, $exit_message = ""){
+  
+  // globals to use
+  global $debug_level;
+  global $debug_messages;
+  global $script_return_array;
+  
+  // decide if to return debug messages or not
+  if( $debug_level > 0 ){
+    $script_return_array['debug_messages'] = $debug_messages;
+  }
 
-// get the HTTP method
-$http_method  = $_SERVER['REQUEST_METHOD'];
+  // check if result set exists already otherwise add it
+  if ( !array_key_exists('result_set', $script_return_array) ){
+    $script_return_array['result_set'] = [];
+  }
 
-// get URL
-$parsed_url = parse_url($_SERVER['REQUEST_URI']);
+  // add exit code to return
+  $script_return_array['exit_message'] = $exit_message;
 
-// get query string
-parse_str($parsed_url['query'], $parsed_query_string); 
+  // add exit message to return
+  $script_return_array['exit_value'] = $exit_value;
 
-// get sql_method
-switch ( mb_strtolower($parsed_query_string['sql_method']) ) {
-  case 'select':
-    $sql_method = "select"; break;
-  case 'update':
-    $sql_method = "update"; break;
-  case 'insert':
-    $sql_method = "insert"; break;
-  case 'delete':
-    $sql_method = "delete"; break;
-  default:
-    $sql_method = "select"; break;
+  // return info to user
+  echo 
+    json_encode(
+      $script_return_array, 
+      JSON_UNESCAPED_UNICODE | 
+        JSON_UNESCAPED_SLASHES | 
+        JSON_NUMERIC_CHECK | 
+        JSON_PRETTY_PRINT
+      );
+      
+      // end script 
+      exit($exit_value);
 }
 
 
-    
+
+
+
+// gather relevant input data --------------------------------------------------
+
+// raw data 
+debug_message($_SERVER, "server", 2);
+debug_message($_SERVER['REQUEST_URI'], "request_uri", 1);
+
+
+// get the HTTP method
+$http_method  = $_SERVER['REQUEST_METHOD'];
+$script_return_array['http_method'] = $http_method;
+debug_message($http_method, "http_method", 1);
+
+// get URL
+$parsed_url = parse_url($_SERVER['REQUEST_URI']);
+$script_return_array['api'] = $parsed_url['path'];
+debug_message(
+  $value = $parsed_url, 
+  $label = "parsed_url", 
+  $min_debug_level = 1
+);
+
+// get query string
+parse_str($parsed_url['query'], $parsed_query_string); 
+debug_message($parsed_query_string,    "parsed_query_string", 1);
+
+   
 // get api path
 $request = explode("/", $parsed_url['path']);
 array_shift($request);
 array_shift($request);
 array_walk($request, 'clean_up_string');
+debug_message($request, "request", 1);
 
 
 // get request body
 $input   = json_decode(file_get_contents('php://input'),true);
 if (!$input) $input = array();
+debug_message($input, "input", 1);
 
 
 // process path
 $table = $request[0];
+debug_message($table, "table", 1);
 
 
 
-// log to user page 
-debug_message($_SERVER,                "server",              2);
-debug_message($parsed_url,             "parsed_url",          1);
-debug_message($parsed_query_string,    "parsed_query_string", 1);
-debug_message($http_method,            "sehttp_methodrver",   1);
-debug_message($sql_method,             "sql_method",          1);
-debug_message($request,                "request",             1);
-debug_message($_SERVER['REQUEST_URI'], "request_uri",         1);
-debug_message($input,                  "input",               1);
-debug_message($table,                  "table",               1);
+
+// process inputs --------------------------------------------------------------
+
 
 // initialize connection to db
 $db = new SQLite3("api_backend.db");
@@ -131,7 +181,7 @@ if ( $row = $results->fetchArray() ) {
 }
 $table_exists = $table_exists_results[0]['COUNT(*)'] == 1;
 debug_message($table_exists_results, "sql_res", 1);
-
+$script_return_array['api_exists'] = $table_exists;
 
 
 // // escape the columns and values from the input object
@@ -147,6 +197,22 @@ debug_message($table_exists_results, "sql_res", 1);
 //   $set.=($i>0?',':'').'`'.$columns[$i].'`=';
 //   $set.=($values[$i]===null?'NULL':'"'.$values[$i].'"');
 // }
+
+
+// determine sql_method to use
+switch ( mb_strtolower($parsed_query_string['sql_method']) ) {
+  case 'select':
+    $sql_method = "select"; break;
+  case 'update':
+    $sql_method = "update"; break;
+  case 'insert':
+    $sql_method = "insert"; break;
+  case 'delete':
+    $sql_method = "delete"; break;
+  default:
+    $sql_method = "select"; break;
+}
+debug_message($sql_method,             "sql_method",          1);
 
 
 // create SQL statements
@@ -182,22 +248,39 @@ if ( $table_exists ){
       }
   }
   debug_message($sql, "sql", 1);
+} else {
+  debug_message("table does not exist", "sql", 1);
+  script_return(1, "api does not exist");
+}
+$script_return_array['sql_method'] = $sql_method;
+
 
 // execute query
+if ( $table_exists ){
   $results = $db -> query($sql);
 
-// retrieve results
+  // retrieve results
   $res_array = [];
   while ( $row = $results->fetchArray() ) {
     $res_array[] = $row;
   }
-} else {
-  $res_array = [];
-  debug_message("table does not exist", "sql", 1);
+  
+  // add results to return array
+  $script_return_array['result_set'] = $res_array;
+  
+  // close db connection
+  $db->close();
+}else{
+  // close db connection
+  $db->close();
+  
+  // return
+  script_return(1, "api does not exist");
 }
 
-// close db connection
-$db->close();
+
+
+
 
 /*
 // print results, insert id or affected row count
@@ -215,20 +298,11 @@ if ($method == 'GET') {
 */
 
 // collect info and return
-$arr = 
-  array(
-    'http-method' => $http_method, 
-    'sql_method' => $sql_method, 
-    'api' => $parsed_url['path'],
-    'api_exists' => $table_exists,
-    'rows_affected' => 'tbd',
-    'result' => $res_array 
-  );
 
 
-if( $debug_level > 0 ){
-  $arr['debug_messages'] = $debug_messages;
-}
 
-echo json_encode($arr, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_NUMERIC_CHECK | JSON_PRETTY_PRINT);
+$script_return_array['rows_affected'] = 'tbd';
+
+
+script_return(0);
 ?>
