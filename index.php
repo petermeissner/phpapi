@@ -100,6 +100,9 @@ function script_return( $exit_value = 0, $exit_message = ""){
   // add exit message to return
   $script_return_array['exit_value'] = $exit_value;
 
+  // set return type
+  header('Content-Type: application/json');
+
   // return info to user
   echo 
     json_encode(
