@@ -2,11 +2,16 @@
 // helper function that returns all data gathered and end script 
 require_once 'set_array_by_key_path.php';
 
-class Returner {
+class Api_data_store {
+  
+  
   // storage for values
   private $script_return_array = [];
   private $debug_messages = [];
   public  $debug_level = 0;
+  public  $api_data = [];
+
+
 
   // initialize
   public function __construct($debug_level = 0)
@@ -23,6 +28,71 @@ class Returner {
     $this->script_return_array['result_set'] = [];
   }
 
+
+
+  public function api_gather_request_data($server){
+    // HTTP method
+    $http_method  = array_key_exists_or_default($server, 'REQUEST_METHOD');
+    
+    // get URL
+    $http_uri   = array_key_exists_or_default($server, 'REQUEST_URI'); 
+    $parsed_url = parse_url($http_uri);
+    $parsed_url['path']  = array_key_exists_or_default($parsed_url, 'path');
+    $parsed_url['query'] = array_key_exists_or_default($parsed_url, 'query');
+    parse_str($parsed_url['query'], $parsed_query_string); 
+    
+    // get api path
+    $request = explode("/", $parsed_url['path']);
+    array_shift($request);
+    array_shift($request);
+    array_walk($request, 'clean_up_string');
+  
+    // get input data
+    $input   = json_decode(file_get_contents('php://input'), true);
+    if (!$input) $input = array();
+  
+    // process path
+    $table = array_key_exists_or_default($request, 0);
+  
+  
+    // debug info
+    $this->add_debug_message($server, "server", 2);
+    $this->add_debug_message(
+      $to_be_printed   = array_key_exists_or_default($server,'REQUEST_URI'),
+      $label           = "request_uri",
+      $min_debug_level = 1
+    );
+     
+    $this->add_debug_message($http_method, "http_method", 1);
+    
+    $this->add_debug_message(
+      $value = $parsed_url, 
+      $label = "parsed_url", 
+      $min_debug_level = 1
+    );
+  
+    $this->add_debug_message($parsed_query_string,    "parsed_query_string", 1);
+    $this->add_debug_message($request, "request", 1);
+    
+    
+    $this->add_debug_message($input, "input", 1);
+    
+    $this->add_debug_message($table, "table", 1);
+    
+    // return info 
+    $this->add_return_value('http_method', $http_method);
+    $this->add_return_value('api', $parsed_url['path']);
+  
+    // api info
+    $this->api_data['http_method'] = $http_method;
+    $this->api_data['api']         = $parsed_url['path'];
+    $this->api_data['query']       = $parsed_url['query'];
+    $this->api_data['table']       = $table;
+    $this->api_data['input']       = $input;
+  }
+
+
+
   // adding messages
   public function add_debug_message( $to_be_printed, $label = "", $min_debug_level = 1)
   {
@@ -36,6 +106,9 @@ class Returner {
     }
   }
 
+
+
+
   // get state
   public function get_debug_info(){
     return [
@@ -43,6 +116,9 @@ class Returner {
       'debug_messages' => $this->debug_messages
     ];
   } 
+
+
+
 
   // add to return values
   public function add_return_value($key = "", $value = NULL)
@@ -54,7 +130,10 @@ class Returner {
     }
   }
 
-  // return
+
+
+
+  // return and stop script execution
   public function return_and_exit($exit_value = 0, $exit_message = "ok"){
     // decide if to return debug messages or not
     if( $this->debug_level > 0 ){

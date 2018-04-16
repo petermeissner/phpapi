@@ -7,8 +7,14 @@ require_once 'clean_up_string.php';
 require_once 'api_gather_request_data.php';
 
 
+// include api(s)
+
+require_once 'api_station.php';
+
+
 // includes - classes ----------------------------------------------------------
-require_once 'Returner.php';
+
+require_once 'Api_data_store.php';
 
 
 
@@ -22,79 +28,18 @@ $debug_level = 0 ;
 
 
 
-// functions -------------------------------------------------------------------
-
-// initialize
-$returner = new Returner($debug_level);
-$api_data = [];
+// doing-duty-to-do ------------------------------------------------------------
 
 
-// gather relevant input data --------------------------------------------------
-api_gather_request_data($api_data, $returner);
-$returner->add_debug_message($api_data, "api_data");
+// initialize api data storage
+$api_data_store = new Api_data_store($debug_level);
 
-// initialize connection to db
-$db    = new SQLite3("api_backend.db");
-$table = $api_data['table'];
-  
-// check table exists
-$sql = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = '$table' COLLATE NOCASE";
-$results = $db->query($sql);
-$table_exists_results = [];
-if ( $row = $results->fetchArray() ) {
-  $table_exists_results[] = $row;
-}
-$table_exists = $table_exists_results[0]['COUNT(*)'] == 1;
+// gather relevant data
+$api_data_store->api_gather_request_data($_SERVER);
 
-$returner->add_debug_message($table_exists_results, "sql_res", 1);
-$returner->add_return_value("feedback/api_exists", $table_exists);
+// execute api function
+api_station($api_data, $api_data_store);
 
-
-// determine sql_method to use
-$sql_method = "select";
-$returner->add_debug_message($sql_method, "sql_method", 1);
-
-// create SQL statements
-if ( $table_exists ){
-  $sql = "select * from `$table` 'LIMIT 5'"; 
-  $returner->add_debug_message($sql, "sql", 1);
-} else {
-  $returner->add_debug_message("table does not exist", "sql", 1);
-  $returner->return_and_exit(1, "api does not exist");
-}
-
-
-// execute query
-$returner->add_return_value('feedback/rows_affected',0);
- 
-if ( $table_exists ){
-  $results = $db -> query($sql);
-  $row_count = 0;
-  
-  // retrieve results
-  $res_array = [];
-  
-  while ( $row = $results->fetchArray() ) {
-    $row_count++;
-    $res_array[] = $row;
-  }
-  
-  $returner->add_return_value('feedback/rows_affected', $row_count);
-
-  // add results to return array
-  $returner->add_return_value('result_set', $res_array);
-  
-  // close db connection
-  $db->close();
-}else{
-  // close db connection
-  $db->close();
-  
-  // return
-  $returner->return_and_exit(1, "api does not exist");
-}
-
-
-// return 
-$returner->return_and_exit(0, "");
+// fallback return
+$api_data_store->return_and_exit(2, "no api route found");
 ?>
