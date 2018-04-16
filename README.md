@@ -3,10 +3,7 @@ Simple PHP REST API
 
 **status**
 
-- Create - tbd
-- Read - ok 
-- Update - tbd
-- Delete - tbd
+Work in progress.
 
 
 **example usage**
