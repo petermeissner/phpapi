@@ -38,7 +38,7 @@ $api_data_store = new Api_data_store($debug_level);
 $api_data_store->api_gather_request_data($_SERVER);
 
 // execute api function
-api_station($api_data, $api_data_store);
+api_station($api_data_store);
 
 // fallback return
 $api_data_store->return_and_exit(2, "no api route found");

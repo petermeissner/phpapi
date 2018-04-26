@@ -54,7 +54,11 @@ class Api_data_store {
     // process path
     $table = array_key_exists_or_default($request, 0);
   
+    // request from localhost or not
+    $request_from_localhost = $server['REMOTE_ADDR'] === '127.0.0.1' || $server['REMOTE_ADDR'] === "::1";
   
+
+
     // debug info
     $this->add_debug_message($server, "server", 2);
     $this->add_debug_message(
@@ -78,17 +82,20 @@ class Api_data_store {
     $this->add_debug_message($input, "input", 1);
     
     $this->add_debug_message($table, "table", 1);
+    $this->add_debug_message($request_from_localhost, "request_from_localhost", 2);
+    
     
     // return info 
     $this->add_return_value('http_method', $http_method);
     $this->add_return_value('api', $parsed_url['path']);
   
     // api info
-    $this->api_data['http_method'] = $http_method;
-    $this->api_data['api']         = $parsed_url['path'];
-    $this->api_data['query']       = $parsed_url['query'];
-    $this->api_data['table']       = $table;
-    $this->api_data['input']       = $input;
+    $this->api_data['http_method']            = $http_method;
+    $this->api_data['api']                    = $parsed_url['path'];
+    $this->api_data['query']                  = $parsed_url['query'];
+    $this->api_data['table']                  = $table;
+    $this->api_data['input']                  = $input;
+    $this->api_data['request_from_localhost'] = $request_from_localhost;
   }
 
 

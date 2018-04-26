@@ -1,5 +1,5 @@
 <?php 
-function api_station($api_data, $api_data_store){
+function api_station($api_data_store){
   // initialize connection to db
   $db    = new SQLite3("api_backend.db");
   $table = $api_data_store->api_data['table'];
