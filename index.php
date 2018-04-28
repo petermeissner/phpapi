@@ -10,6 +10,7 @@ require_once 'api_gather_request_data.php';
 // include api(s)
 
 require_once 'api_station.php';
+require_once 'api_wikisaur.php';
 
 
 // includes - classes ----------------------------------------------------------
@@ -37,8 +38,23 @@ $api_data_store = new Api_data_store($debug_level);
 // gather relevant data
 $api_data_store->api_gather_request_data($_SERVER);
 
-// execute api function
-api_station($api_data_store);
+
+// route to api 
+switch ( explode("/", $api_data_store->api_data['api'])[1] ) {
+  
+  case 'wikisaur':
+    api_wikisaur($api_data_store);
+    break;
+  
+  case 'station':
+    api_station($api_data_store);
+    break;
+
+  default:
+    break;
+}
+
+
 
 // fallback return
 $api_data_store->return_and_exit(2, "no api route found");
