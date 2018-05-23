@@ -1,4 +1,4 @@
-<?php 
+<?php
 function api_station($api_data_store){
   // initialize connection to db
   $db    = new SQLite3("api_backend.db");
@@ -23,7 +23,7 @@ function api_station($api_data_store){
 
   // create SQL statements
   if ( $table_exists ){
-    $sql = "select * from `$table` 'LIMIT 5'"; 
+    $sql = "select * from `$table` 'LIMIT 5'";
     $api_data_store->add_debug_message($sql, "sql", 1);
   } else {
     $api_data_store->add_debug_message("table does not exist", "sql", 1);

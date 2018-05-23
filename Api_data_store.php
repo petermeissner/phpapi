@@ -1,5 +1,5 @@
 <?php
-// helper function that returns all data gathered and end script 
+// helper function that returns all data gathered and end script
 require_once 'set_array_by_key_path.php';
 
 class Api_data_store {
@@ -35,11 +35,11 @@ class Api_data_store {
     $http_method  = array_key_exists_or_default($server, 'REQUEST_METHOD');
     
     // get URL
-    $http_uri   = array_key_exists_or_default($server, 'REQUEST_URI'); 
+    $http_uri   = array_key_exists_or_default($server, 'REQUEST_URI');
     $parsed_url = parse_url($http_uri);
     $parsed_url['path']  = array_key_exists_or_default($parsed_url, 'path');
     $parsed_url['query'] = array_key_exists_or_default($parsed_url, 'query');
-    parse_str($parsed_url['query'], $parsed_query_string); 
+    parse_str($parsed_url['query'], $parsed_query_string);
     
     // get api path
     $request = explode("/", $parsed_url['path']);
@@ -70,8 +70,8 @@ class Api_data_store {
     $this->add_debug_message($http_method, "http_method", 1);
     
     $this->add_debug_message(
-      $value = $parsed_url, 
-      $label = "parsed_url", 
+      $value = $parsed_url,
+      $label = "parsed_url",
       $min_debug_level = 1
     );
   
@@ -85,14 +85,14 @@ class Api_data_store {
     $this->add_debug_message($request_from_localhost, "request_from_localhost", 2);
     
     
-    // return info 
+    // return info
     $this->add_return_value('http_method', $http_method);
-    $this->add_return_value('api', $parsed_url['path']);
+    $this->add_return_value('api', $table);
   
     // api info
     $this->api_data['http_method']            = $http_method;
-    $this->api_data['api']                    = $parsed_url['path'];
-    $this->api_data['query']                  = $parsed_url['query'];
+    $this->api_data['api']                    = $table;
+    $this->api_data['query']                  = $parsed_query_string;
     $this->api_data['table']                  = $table;
     $this->api_data['input']                  = $input;
     $this->api_data['request_from_localhost'] = $request_from_localhost;
@@ -122,7 +122,7 @@ class Api_data_store {
       'debug_level'    => $this->debug_level,
       'debug_messages' => $this->debug_messages
     ];
-  } 
+  }
 
 
 
@@ -162,16 +162,16 @@ class Api_data_store {
     header('Content-Type: application/json');
 
     // return info to user
-    echo 
+    echo
       json_encode(
-        $this->script_return_array, 
-        JSON_UNESCAPED_UNICODE | 
-          JSON_UNESCAPED_SLASHES | 
-          JSON_NUMERIC_CHECK | 
+        $this->script_return_array,
+        JSON_UNESCAPED_UNICODE |
+          JSON_UNESCAPED_SLASHES |
+          JSON_NUMERIC_CHECK |
           JSON_PRETTY_PRINT
         );
         
-        // end script 
+        // end script
         exit($exit_value);
   }
 }

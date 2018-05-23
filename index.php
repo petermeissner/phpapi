@@ -1,6 +1,6 @@
 <?php
 // phpcs:ignore
-// includes - functions -------------------------------------------------------- 
+// includes - functions --------------------------------------------------------
 
 require_once 'array_key_exists_or_default.php';
 require_once 'clean_up_string.php';
@@ -11,7 +11,7 @@ require_once 'api_gather_request_data.php';
 
 require_once 'api_station.php';
 require_once 'api_wikisaur.php';
-
+require_once 'api_ruhh_slack_join.php';
 
 // includes - classes ----------------------------------------------------------
 
@@ -38,9 +38,11 @@ $api_data_store = new Api_data_store($debug_level);
 // gather relevant data
 $api_data_store->api_gather_request_data($_SERVER);
 
+var_dump($api_data_store->api_data['api']);
 
-// route to api 
-switch ( explode("/", $api_data_store->api_data['api'])[1] ) {
+
+// route to api
+switch ( $api_data_store->api_data['api'] ) {
   
   case 'wikisaur':
     api_wikisaur($api_data_store);
@@ -49,6 +51,9 @@ switch ( explode("/", $api_data_store->api_data['api'])[1] ) {
   case 'station':
     api_station($api_data_store);
     break;
+
+  case 'ruhhslack':
+    api_ruhhslack($api_data_store);
 
   default:
     break;
